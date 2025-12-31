@@ -1,0 +1,7 @@
+[package]
+name = "nebula_ir"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nebula_ast = {path = "../nebula_ast"}

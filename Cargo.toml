@@ -1,0 +1,10 @@
+[package]
+name = "nebula"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nebula_lexer = {path = "compiler/nebula_lexer"}
+nebula_parser = {path = "compiler/nebula_parser"}
+nebula_codegen = {path = "compiler/nebula_codegen"}
+nebula_ir_gen = {path = "compiler/nebula_ir_gen"}

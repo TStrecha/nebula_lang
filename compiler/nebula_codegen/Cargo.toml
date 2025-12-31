@@ -1,0 +1,8 @@
+[package]
+name = "nebula_codegen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nebula_ir = {path = "../nebula_ir"}
+inkwell = { version = "0.7.1", features = ["llvm20-1"] }
