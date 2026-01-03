@@ -37,6 +37,8 @@ pub fn create_llvm_module<'ctx>(ir_module: IRModule, context: &'ctx Context, bui
                 module.store_lit(target.as_identifier(), value),
             IRInstruction::Load { target, from } =>
                 module.load(target, from.as_identifier()),
+            IRInstruction::Store { to, value } =>
+                module.store(to.as_identifier(), value),
             IRInstruction::Return { from } =>
                 module.build_return(from),
         }

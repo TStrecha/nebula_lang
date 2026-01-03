@@ -4,9 +4,9 @@ use nebula_ir::module::IRModule;
 use nebula_tst::item::TypedItem;
 
 //todo move after implementing scopes
-const LOCAL_INDEX: AtomicU32 = AtomicU32::new(0);
-const GLOBAL_INDEX: AtomicU32 = AtomicU32::new(0);
-const TEMP_INDEX: AtomicU32 = AtomicU32::new(0);
+static LOCAL_INDEX: AtomicU32 = AtomicU32::new(0);
+static GLOBAL_INDEX: AtomicU32 = AtomicU32::new(0);
+static TEMP_INDEX: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Debug)]
 pub struct IRModuleBuilder {

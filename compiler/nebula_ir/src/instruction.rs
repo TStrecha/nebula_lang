@@ -1,4 +1,4 @@
-use crate::value::{IRLiteral, IRPlace, IRTemp};
+use crate::value::{IRLiteral, IRPlace, IRTemp, IRValue};
 
 #[derive(Debug, Clone)]
 pub enum IRInstruction {
@@ -12,7 +12,12 @@ pub enum IRInstruction {
         from: IRPlace,
     },
 
+    Store {
+        to: IRPlace,
+        value: IRValue,
+    },
+
     Return {
-        from: IRTemp,
+        from: IRPlace,
     }
 }

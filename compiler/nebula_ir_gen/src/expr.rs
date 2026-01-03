@@ -1,7 +1,7 @@
 use nebula_ir::identification::GlobalId;
 use nebula_ir::instruction::IRInstruction;
 use nebula_ir::module::IRGlobal;
-use nebula_ir::value::{IRLiteral, IRPlace, IRTemp, IRType};
+use nebula_ir::value::{IRLiteral, IRPlace, IRTemp, IRType, IRValue};
 use nebula_tst::{Place, Type, TypedLiteral};
 use nebula_tst::item::TypedExpr;
 use nebula_tst::ty::BuiltinType;
@@ -39,9 +39,23 @@ impl IRModuleBuilder {
             }
             TypedExpr::Ident { symbol, ty } => {
                 let ir_type = type_to_ir_type(&ty);
-                let ir_place = place_to_ir_place(&symbol.place);
+                let ir_place = self.module.globals().iter().filter(|global| global.name == symbol.name)
+                    .next()
+                    .map(|global| IRPlace::Global(global.id))
+                    .unwrap_or_else(|| place_to_ir_place(&symbol.place));
 
-                let target = IRTemp { id: create_temp_id(), ty: ir_type };
+                let mut should_store = true;
+
+                let target = if let Some(place) = place.clone() {
+                    if let IRPlace::Temp(id) = place {
+                        should_store = false;
+                        IRTemp { id, ty: ir_type }
+                    } else {
+                        IRTemp { id: create_temp_id(), ty: ir_type }
+                    }
+                } else {
+                    IRTemp { id: create_temp_id(), ty: ir_type }
+                };
 
                 let instr = IRInstruction::Load {
                     target: target.clone(),
@@ -49,21 +63,24 @@ impl IRModuleBuilder {
                 };
 
                 self.module.push_instr(instr);
+
+                if should_store {
+                    if let Some(place) = place {
+                        let instr = IRInstruction::Store {
+                            to: place,
+                            value: IRValue::Temp(target),
+                        };
+
+                        self.module.push_instr(instr);
+                    }
+                }
             },
 
-            TypedExpr::Return { value, ty } => {
-                let place = IRTemp {
-                    id: create_temp_id(),
-                    ty: type_to_ir_type(&ty),
-                };
+            TypedExpr::Return { value, .. } => {
+                let temp_id = create_temp_id();
 
-                self.handle_expr(*value, Some(IRPlace::Temp(place.id)));
-
-                let instr = IRInstruction::Return {
-                    from: place
-                };
-
-                self.module.push_instr(instr);
+                self.handle_expr(*value, Some(IRPlace::Temp(temp_id)));
+                self.module.push_instr(IRInstruction::Return { from: IRPlace::Temp(temp_id) });
             }
         }
     }
