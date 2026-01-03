@@ -1,6 +1,6 @@
 use crate::{cursor::Cursor, token::Token};
 
-pub fn tokenize(data: &str) -> Vec<Token> {
+pub fn tokenize(data: &'_ str) -> Vec<Token<'_>> {
     let mut cursor = Cursor::new(data);
 
     let mut tokens = vec![];

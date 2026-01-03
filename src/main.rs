@@ -1,47 +1,45 @@
-use std::{env, fs};
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::process::Command;
-use nebula_codegen::generate_llvm_code;
-use nebula_ir_gen::builder::IRModuleBuilder;
+
 use nebula_lexer::tokenizer::tokenize;
-use nebula_parser::parser::AstParser;
+use nebula_parser::{build_ast, build_tst};
+use nebula_ir_gen::generate_ir_module;
+use nebula_codegen::{generate_llvm_ir};
+
 fn main() {
     let source_code = fs::read_to_string("example/test.neb").unwrap();
 
     let tokens = tokenize(&source_code);
-    let mut parser = AstParser::new(tokens);
+    let ast = build_ast(tokens);
+    let tst = build_tst(ast);
 
-    let mut ast = vec![];
-    loop {
-        let next_item = parser.next_item();
-
-        if let Some(next_item) = next_item {
-            ast.push(next_item);
-        } else {
-            break;
-        }
+    println!(" ===== TST ===== ");
+    for item in tst.items() {
+        println!("{:?}", &item);
     }
-
-    println!(" ===== AST ===== ");
-    println!("{:?}", &ast);
-
-    let mut ir_module_builder = IRModuleBuilder::new(ast);
-    ir_module_builder.build();
+    let ir_module = generate_ir_module(tst);
 
     println!(" ===== IR ====== ");
-    println!("{:?}", ir_module_builder.module);
+    println!(" -- GLOBAL -- ");
+    for global in ir_module.globals() {
+        println!("{:?}", global);
+    }
 
-    let backend_code = generate_llvm_code(ir_module_builder.module);
+    println!(" -- INSTR -- ");
+    for instruction in ir_module.instructions() {
+        println!("{:?}", instruction);
+    }
+
+    let backend_code = generate_llvm_ir(vec![ir_module]);
 
     let mut file = File::create("out/program.ll").unwrap();
     file.write_all(backend_code.as_bytes()).unwrap();
 
-    if false {
+    if true {
         Command::new("clang")
             .arg("out/program.ll")
-            .arg("-isysroot")
-            .arg(env::var("SDKROOT").unwrap())
             .arg("-o")
             .arg("out/program")
             .status()

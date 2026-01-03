@@ -1,11 +1,28 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TempId(u32);
+pub enum PointerIdentifierKind<'id> {
+    Global(&'id GlobalId),
+    Local(&'id LocalId)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GlobalId(u32);
+pub struct TempId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GlobalId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LocalId(u32);
+
+impl GlobalId {
+    pub fn as_identifier(&self) -> PointerIdentifierKind<'_> {
+        PointerIdentifierKind::Global(self)
+    }
+}
+
+impl LocalId {
+    pub fn as_identifier(&self) -> PointerIdentifierKind<'_> {
+        PointerIdentifierKind::Local(self)
+    }
+}
 
 impl From<u32> for TempId {
     fn from(value: u32) -> Self {
@@ -22,5 +39,23 @@ impl From<u32> for GlobalId {
 impl From<u32> for LocalId {
     fn from(value: u32) -> Self {
         Self(value)
+    }
+}
+
+impl From<&u32> for TempId {
+    fn from(value: &u32) -> Self {
+        Self(*value)
+    }
+}
+
+impl From<&u32> for GlobalId {
+    fn from(value: &u32) -> Self {
+        Self(*value)
+    }
+}
+
+impl From<&u32> for LocalId {
+    fn from(value: &u32) -> Self {
+        Self(*value)
     }
 }

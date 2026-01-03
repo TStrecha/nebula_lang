@@ -50,7 +50,7 @@ impl<'t> AstParser<'t> {
         panic!("Expected operator, found {:?}", token);
     }
 
-    pub fn consume_lit(&mut self) -> &LiteralKind {
+    pub fn _consume_lit(&mut self) -> &LiteralKind<'_> {
         let token = self.consume();
 
         if let Token::Literal(kind) = token {
@@ -76,11 +76,11 @@ impl<'t> AstParser<'t> {
         }
     }
 
-    pub fn peek(&self) -> &Token {
+    pub fn peek(&self) -> &Token<'_> {
         &self.tokens[self.index.clone()]
     }
 
-    pub fn consume(&mut self) -> &Token {
+    pub fn consume(&mut self) -> &Token<'_> {
         let token = &self.tokens[self.index.clone()];
 
         self.index = self.index + 1;

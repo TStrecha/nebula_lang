@@ -1,7 +1,6 @@
-use nebula_ast::item::{BuiltinType, Type};
-use crate::identification::{GlobalId, LocalId, TempId};
+use crate::identification::{GlobalId, LocalId, PointerIdentifierKind, TempId};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IRType {
     U8,
     U16,
@@ -14,12 +13,12 @@ pub enum IRType {
 }
 
 #[derive(Debug, Clone)]
-pub enum IRConst {
+pub enum IRLiteral {
     U8(u8),
     U16(u16),
     U32(u32),
     U64(u64),
-    F32(f64),
+    F32(f32),
     F64(f64),
     String(String),
 }
@@ -33,7 +32,7 @@ pub struct IRTemp {
 #[derive(Debug, Clone)]
 pub enum IRValue {
     Temp(IRTemp),
-    Const(IRConst),
+    Literal(IRLiteral),
 }
 
 #[derive(Debug, Clone)]
@@ -42,20 +41,12 @@ pub enum IRPlace {
     Local(LocalId),
 }
 
-impl From<&Type> for IRType {
-    fn from(ty: &Type) -> Self {
-        match ty {
-            Type::Builtin(builtin) => match builtin {
-                BuiltinType::Bool =>    IRType::Bool,
-                BuiltinType::U8 =>      IRType::U8,
-                BuiltinType::U16 =>     IRType::U16,
-                BuiltinType::U32 =>     IRType::U32,
-                BuiltinType::U64 =>     IRType::U64,
-                BuiltinType::F32 =>     IRType::F32,
-                BuiltinType::F64 =>     IRType::F64,
-                BuiltinType::String =>  IRType::String,
-            }
-            Type::Named(..) => unimplemented!()
+impl IRPlace {
+
+    pub fn as_identifier(&self) -> PointerIdentifierKind<'_> {
+        match self {
+            IRPlace::Global(id) => id.as_identifier(),
+            IRPlace::Local(id) => id.as_identifier(),
         }
     }
 }

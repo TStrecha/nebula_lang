@@ -1,10 +1,10 @@
-use crate::value::{IRConst, IRPlace, IRTemp  , IRValue};
+use crate::value::{IRLiteral, IRPlace, IRTemp, IRValue};
 
 #[derive(Debug, Clone)]
 pub enum IRInstruction {
-    LoadConst {
-        target: IRTemp,
-        value: IRConst,
+    LoadLiteral {
+        target: IRPlace,
+        value: IRLiteral,
     },
 
     Load {

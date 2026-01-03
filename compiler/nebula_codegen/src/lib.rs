@@ -1,100 +1,48 @@
-use inkwell::context::Context;
-use inkwell::types::{BasicTypeEnum};
-use inkwell::values::{BasicValueEnum};
-use nebula_ir::instruction::{IRInstruction};
-use nebula_ir::module::IRModule;
-use nebula_ir::value::{IRConst, IRType};
+mod context;
 
-pub fn generate_llvm_code(ir_module: IRModule) -> String {
+use std::sync::atomic::AtomicU32;
+use inkwell::builder::Builder;
+use inkwell::context::Context;
+use nebula_ir::instruction::IRInstruction;
+use nebula_ir::module::IRModule;
+use crate::context::{CodegenContext, Module};
+
+const STRING_LIT_INDEX: AtomicU32 = AtomicU32::new(0);
+
+pub fn generate_llvm_ir(ir_modules: Vec<IRModule>) -> String {
     let context = Context::create();
     let builder = context.create_builder();
-    let module = context.create_module(ir_module.name());
 
-    {
-        let void_type = context.void_type().fn_type(&[], false);
-        let main_function = module.add_function("main", void_type, None);
-        let entry_bb = context.append_basic_block(main_function, "entry");
-        builder.position_at_end(entry_bb);
+    let mut codegen_context = CodegenContext::new();
+
+    for ir_module in ir_modules {
+        let module = create_llvm_module(ir_module, &context, &builder);
+        codegen_context.add_module(module);
     }
+
+    codegen_context.generate_to_string()
+}
+
+pub fn create_llvm_module<'ctx>(ir_module: IRModule, context: &'ctx Context, builder: &'ctx Builder) -> Module<'ctx> {
+    let mut module = Module::new("main", context, builder);
+    module.generate_entry_point();
 
     for global in ir_module.globals() {
-
-        let (global_type, value_initializer): (BasicTypeEnum, Option<BasicValueEnum>) = match global.ty {
-
-            // IRConst::Number(val) => {
-            //     (context.i64_type().into(), context.i64_type().const_int(val, false).into())
-            // }
-            // IRConst::Decimal(val) => {
-            //     (context.f64_type().into(), context.f64_type().const_float(val).into())
-            // }
-            // IRConst::String(val) => {
-            //     let bytes = context.const_string(val.as_bytes(), true);
-            //     (bytes.get_type().into(), bytes.into())
-            // }
-            IRType::U8 => { (context.i8_type().into(), test(&context, &global.initializer)) }
-            IRType::U16 => { (context.i16_type().into(), test(&context, &global.initializer)) }
-            IRType::U32 => { (context.i32_type().into(), test(&context, &global.initializer)) }
-            IRType::U64 => { (context.i64_type().into(), test(&context, &global.initializer)) }
-            IRType::F32 => { (context.f32_type().into(), test(&context, &global.initializer)) }
-            IRType::F64 => { (context.f64_type().into(), test(&context, &global.initializer)) }
-            IRType::Bool => { (context.bool_type().into(), test(&context, &global.initializer)) }
-            IRType::String => unimplemented!()
-        };
-
-        let declared_global = module.add_global(global_type, None, &global.name);
-
-        if let Some(initializer) = value_initializer {
-            declared_global.set_initializer(&initializer);
-        }
-        declared_global.set_constant(true);
+        module.add_global(global)
     }
-
 
     for instruction in ir_module.instructions() {
         match instruction {
-            IRInstruction::Load { .. } => {}
-            IRInstruction::Store { to, value } => {
-
-                // let (global_type, value_initializer): (BasicTypeEnum, BasicValueEnum) = match source {
-                //     IRConst::Number(val) => {
-                //         (context.i64_type().into(), context.i64_type().const_int(val, false).into())
-                //     }
-                //     IRConst::Decimal(val) => {
-                //         (context.f64_type().into(), context.f64_type().const_float(val).into())
-                //     }
-                //     IRConst::String(val) => {
-                //         let bytes = context.const_string(val.as_bytes(), true);
-                //         (bytes.get_type().into(), bytes.into())
-                //     }
-                // };
-                //
-                // let declared_global = module.add_global(global_type, None, &name);
-                // declared_global.set_initializer(&value_initializer);
-                // declared_global.set_constant(true);
-            }
-            _ => {}
+            IRInstruction::LoadLiteral { target, value } =>
+                module.load_lit(target.as_identifier(), value),
+            IRInstruction::Load { target, from } =>
+                module.load(target, from.as_identifier()),
+            IRInstruction::Store { to, value } =>
+                module.store(to.as_identifier(), value),
         }
     }
 
-    builder.build_return(None);
-    module.print_to_string().to_string()
-}
+    module.add_void_return();
 
-pub fn test<'ctx>(context: &'ctx Context, value: &Option<IRConst>) -> Option<BasicValueEnum<'ctx>> {
-    match value {
-        None => None,
-        Some(value) => {
-            let llvm_initializer: BasicValueEnum = match value {
-                IRConst::U8(val) => context.i8_type().const_int(*val as u64, true).into(),
-                IRConst::U16(val) => context.i16_type().const_int(*val as u64, true).into(),
-                IRConst::U32(val) => context.i32_type().const_int(*val as u64, true).into(),
-                IRConst::U64(val) => context.i64_type().const_int(*val, true).into(),
-                IRConst::F32(val) => context.f32_type().const_float(*val).into(),
-                IRConst::F64(val) => context.f64_type().const_float(*val).into(),
-                IRConst::String(val) => context.const_string(val.as_bytes(), true).into(),
-            };
-
-            Some(llvm_initializer)
-        }
-    }
+    module
 }

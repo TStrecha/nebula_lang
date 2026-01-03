@@ -1,7 +1,7 @@
 use nebula_ast::item::{Expr, Literal};
 use nebula_lexer::token::{LiteralKind, OperatorKind, Token};
 
-use crate::parser::AstParser;
+use crate::ast::parser::AstParser;
 
 impl<'t> AstParser<'t> {
     pub fn parse_expr(&mut self) -> Expr {
@@ -22,8 +22,8 @@ impl<'t> AstParser<'t> {
                 self.consume_semicolon();
 
                 Expr::VarDecl {
-                    name: String::from(var_name),
-                    value_type: value_type.into(),
+                    name: var_name,
+                    ty: value_type,
                     value: Box::new(value_expr),
                 }
             }

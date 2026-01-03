@@ -1,4 +1,4 @@
-var a: u64 = 12;
+var a: u32 = 12;
 var b: f32 = 12.0;
-var c: string = "test";
-var d: u64 = a;
+var c: string = "Hello World!";
+var d: u32 = a;

@@ -1,83 +1,108 @@
-use nebula_ast::item::{BuiltinType, Expr, Literal, Type};
+use nebula_ir::identification::GlobalId;
 use nebula_ir::instruction::IRInstruction;
 use nebula_ir::module::IRGlobal;
-use nebula_ir::value::{IRConst, IRPlace, IRTemp, IRType, IRValue};
-use crate::builder::IRModuleBuilder;
+use nebula_ir::value::{IRLiteral, IRPlace, IRTemp, IRType, IRValue};
+use nebula_tst::{Place, Type, TypedLiteral};
+use nebula_tst::item::TypedExpr;
+use nebula_tst::ty::BuiltinType;
+use crate::builder::{create_global_id, create_local_id, create_temp_id, IRModuleBuilder};
 
 impl IRModuleBuilder {
-    pub fn handle_expr(&mut self, expr: Expr, temp: Option<IRTemp>) {
+
+    pub fn handle_expr(&mut self, expr: TypedExpr, place: Option<IRPlace>) {
         match expr {
-            Expr::VarDecl { name, value_type, value } => {
-                let ir_type = IRType::from(&value_type);
+            TypedExpr::VarDecl { name, ty, value } => {
+                let global_id: GlobalId = (self.module.globals().len() as u32).into();
 
-                let mut initializer: Option<IRConst> = None;
+                let ir_type = type_to_ir_type(&ty);
+                let place = IRPlace::Global(global_id.clone());
 
-                if let Expr::Lit(literal) = *value {
-
-                    let ir_const = match (&literal, &ir_type) {
-                        (Literal::Number(val), IRType::U8) => IRConst::U8(*val as u8),
-                        (Literal::Number(val), IRType::U16) => IRConst::U16(*val as u16),
-                        (Literal::Number(val), IRType::U32) => IRConst::U32(*val as u32),
-                        (Literal::Number(val), IRType::U64) => IRConst::U64(*val as u64),
-
-                        (Literal::Decimal(val), IRType::F32) => IRConst::F32(*val),
-                        (Literal::Decimal(val), IRType::F64) => IRConst::F64(*val),
-
-                        (Literal::StringLit(val), IRType::String) => IRConst::String(val.clone()),
-
-                        _ => panic!("Type mismatch: {:?} can't be {:?}", literal, value_type),
-                    };
-
-                    initializer = Some(ir_const)
+                if let TypedExpr::Lit(lit) = *value {
+                    self.module.push_instr(IRInstruction::LoadLiteral {
+                        target: place.clone(),
+                        value: literal_to_ir_literal(lit),
+                    });
                 } else {
-                    let temp = IRTemp {
-                        id: 1.into(),
-                        ty: IRType::U8,
-                    };
-
-                    self.handle_expr(*value, Some(temp.clone()));
+                    self.handle_expr(*value, Some(place));
                 };
 
                 let global_def = IRGlobal {
-                    id: (self.module.globals().len() as u32).into(),
+                    id: global_id,
                     name,
                     ty: ir_type,
-                    initializer,
                 };
 
                 self.module.push_global(global_def);
             }
-            Expr::Lit(lit) => {
-                if let Some(temp) = temp {
-                    let instr_value = match lit {
-                        Literal::Number(val) => IRConst::U32(val as u32),
-                        Literal::Decimal(val) => IRConst::F64(val),
-                        Literal::StringLit(val) => IRConst::String(val),
-                    };
+            TypedExpr::Lit(lit) => {
+                if let Some(place) = place {
+                    let instr_value = literal_to_ir_literal(lit);
 
-                    self.module.push_instr(IRInstruction::LoadConst {
-                        target: temp,
+                    self.module.push_instr(IRInstruction::LoadLiteral {
+                        target: place,
                         value: instr_value,
                     });
                 }
             }
-            Expr::Ident(String) => {
-                let target = IRTemp { id: 2.into(), ty: IRType::U8 };
+            TypedExpr::Ident { symbol, ty } => {
+                let ir_type = type_to_ir_type(&ty);
+                let ir_place = place_to_ir_place(&symbol.place);
+
+                let target = IRTemp { id: create_temp_id(), ty: ir_type };
 
                 let instr = IRInstruction::Load {
                     target: target.clone(),
-                    from: IRPlace::Local(1.into()),
+                    from: ir_place,
                 };
 
                 self.module.push_instr(instr);
 
-                let instr = IRInstruction::Store {
-                    to: IRPlace::Local(1.into()),
-                    value: IRValue::Temp(target),
-                };
+                if let Some(place) = place {
+                    let instr = IRInstruction::Store {
+                        to: place,
+                        value: IRValue::Temp(target),
+                    };
 
-                self.module.push_instr(instr);
+                    self.module.push_instr(instr);
+                }
             }
         }
+    }
+}
+
+pub fn type_to_ir_type(ty: &Type) -> IRType {
+    match ty {
+        Type::Builtin(builtin) => match builtin {
+            BuiltinType::Bool =>    IRType::Bool,
+            BuiltinType::U8 =>      IRType::U8,
+            BuiltinType::U16 =>     IRType::U16,
+            BuiltinType::U32 =>     IRType::U32,
+            BuiltinType::U64 =>     IRType::U64,
+            BuiltinType::F32 =>     IRType::F32,
+            BuiltinType::F64 =>     IRType::F64,
+            BuiltinType::String =>  IRType::String
+        }
+        Type::Named(..) => unimplemented!(),
+        Type::Void => unimplemented!()
+    }
+}
+
+pub fn place_to_ir_place(place: &Place) -> IRPlace {
+    match place {
+        Place::Global => IRPlace::Global(create_global_id()),
+        Place::Local => IRPlace::Local(create_local_id()),
+    }
+}
+
+pub fn literal_to_ir_literal(lit: TypedLiteral) -> IRLiteral {
+    match lit {
+        TypedLiteral::U8(val) => IRLiteral::U8(val),
+        TypedLiteral::U16(val) => IRLiteral::U16(val),
+        TypedLiteral::U32(val) => IRLiteral::U32(val),
+        TypedLiteral::U64(val) => IRLiteral::U64(val),
+        TypedLiteral::F32(val) => IRLiteral::F32(val),
+        TypedLiteral::F64(val) =>  IRLiteral::F64(val),
+        TypedLiteral::Bool(_) => unimplemented!(),
+        TypedLiteral::String(val) => IRLiteral::String(val),
     }
 }

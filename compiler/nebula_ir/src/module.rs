@@ -1,13 +1,12 @@
 use crate::identification::GlobalId;
-use crate::instruction::{IRInstruction};
-use crate::value::{IRConst, IRType};
+use crate::instruction::IRInstruction;
+use crate::value::IRType;
 
 #[derive(Debug)]
 pub struct IRGlobal {
     pub id: GlobalId,
     pub name: String,
     pub ty: IRType,
-    pub initializer: Option<IRConst>,
 }
 
 #[derive(Debug)]
