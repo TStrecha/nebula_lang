@@ -1,7 +1,7 @@
 use nebula_ir::identification::GlobalId;
 use nebula_ir::instruction::IRInstruction;
 use nebula_ir::module::IRGlobal;
-use nebula_ir::value::{IRLiteral, IRPlace, IRTemp, IRType, IRValue};
+use nebula_ir::value::{IRLiteral, IRPlace, IRTemp, IRType};
 use nebula_tst::{Place, Type, TypedLiteral};
 use nebula_tst::item::TypedExpr;
 use nebula_tst::ty::BuiltinType;
@@ -17,14 +17,7 @@ impl IRModuleBuilder {
                 let ir_type = type_to_ir_type(&ty);
                 let place = IRPlace::Global(global_id.clone());
 
-                if let TypedExpr::Lit(lit) = *value {
-                    self.module.push_instr(IRInstruction::LoadLiteral {
-                        target: place.clone(),
-                        value: literal_to_ir_literal(lit),
-                    });
-                } else {
-                    self.handle_expr(*value, Some(place));
-                };
+                self.handle_expr(*value, Some(place));
 
                 let global_def = IRGlobal {
                     id: global_id,
@@ -38,7 +31,7 @@ impl IRModuleBuilder {
                 if let Some(place) = place {
                     let instr_value = literal_to_ir_literal(lit);
 
-                    self.module.push_instr(IRInstruction::LoadLiteral {
+                    self.module.push_instr(IRInstruction::StoreLiteral {
                         target: place,
                         value: instr_value,
                     });
@@ -56,15 +49,21 @@ impl IRModuleBuilder {
                 };
 
                 self.module.push_instr(instr);
+            },
 
-                if let Some(place) = place {
-                    let instr = IRInstruction::Store {
-                        to: place,
-                        value: IRValue::Temp(target),
-                    };
+            TypedExpr::Return { value, ty } => {
+                let place = IRTemp {
+                    id: create_temp_id(),
+                    ty: type_to_ir_type(&ty),
+                };
 
-                    self.module.push_instr(instr);
-                }
+                self.handle_expr(*value, Some(IRPlace::Temp(place.id)));
+
+                let instr = IRInstruction::Return {
+                    from: place
+                };
+
+                self.module.push_instr(instr);
             }
         }
     }

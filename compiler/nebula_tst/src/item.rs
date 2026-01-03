@@ -8,6 +8,7 @@ pub enum TypedItem {
 #[derive(Debug, PartialEq, PartialOrd)]
 pub enum TypedExpr {
     VarDecl { name: String, ty: Type, value: Box<TypedExpr> },
+    Return { ty: Type, value: Box<TypedExpr> },
     Lit(TypedLiteral),
     Ident { symbol: Symbol, ty: Type },
 }

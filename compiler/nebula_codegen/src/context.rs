@@ -7,7 +7,7 @@ use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicValueEnum, GlobalValue, PointerValue};
 use nebula_ir::identification::{GlobalId, PointerIdentifierKind, LocalId, TempId};
 use nebula_ir::module::IRGlobal;
-use nebula_ir::value::{IRLiteral, IRTemp, IRType, IRValue};
+use nebula_ir::value::{IRLiteral, IRTemp, IRType};
 use crate::STRING_LIT_INDEX;
 
 pub struct CodegenContext<'ctx> {
@@ -60,9 +60,9 @@ impl<'ctx> Module<'ctx> {
 
     // todo better way after adding functions
     pub fn generate_entry_point(&self) {
-        let void_return_type = self.llvm.void_type().fn_type(&[], false);
-        let _int_return_type = self.llvm.i32_type().fn_type(&[], false);
-        let main_function = self.module.add_function("main", void_return_type, None);
+        let _void_return_type = self.llvm.void_type().fn_type(&[], false);
+        let int_return_type = self.llvm.i32_type().fn_type(&[], false);
+        let main_function = self.module.add_function("main", int_return_type, None);
         let entry_bb = self.llvm.append_basic_block(main_function, "entry");
         self.builder.position_at_end(entry_bb);
     }
@@ -81,7 +81,7 @@ impl<'ctx> Module<'ctx> {
         self.globals.insert(ir_global.id, declared_global);
     }
 
-    pub(crate) fn load_lit(&self, id: PointerIdentifierKind, value: &IRLiteral) {
+    pub(crate) fn store_lit(&self, id: PointerIdentifierKind, value: &IRLiteral) {
         let llvm_value = self.ir_literal_to_llvm_value(value);
         let ptr = self.get_pointer_from_identifier(id);
 
@@ -90,24 +90,28 @@ impl<'ctx> Module<'ctx> {
 
     pub(crate) fn load(&mut self, target: &IRTemp, id: PointerIdentifierKind) {
         let ty = ir_type_to_llm_type(&self.llvm, &target.ty);
-        let ptr = self.get_pointer_from_identifier(id);
+        let src_ptr = self.get_pointer_from_identifier(id);
 
-        self.builder.build_load(ty, ptr, &format!("tmp${}", target.id.0)).unwrap();
-        self.temps.insert(target.id, ptr);
+        let tmp_ptr = self.builder.build_alloca(ty, &format!("tmp${}", target.id.0)).unwrap();
+
+        let val = self.builder.build_load(ty, src_ptr, "tmp_load").unwrap();
+        self.builder.build_store(tmp_ptr, val).unwrap();
+
+        self.temps.insert(target.id, tmp_ptr);
     }
 
+    pub(crate) fn build_return(&self, temp: &IRTemp) {
+        let ptr = self.get_pointer_from_identifier(PointerIdentifierKind::Temp(&temp.id));
 
-    pub(crate) fn store(&self, id: PointerIdentifierKind, value: &IRValue) {
-        match value {
-            IRValue::Temp(temp) => {
-                let ptr_to = self.get_pointer_from_identifier(id);
-                let ptr_from = self.temps[&temp.id];
+        let val = self.builder
+            .build_load(
+                self.llvm.i32_type(),
+                ptr,
+                &format!("ret${}", temp.id.0),
+            )
+            .unwrap();
 
-                self.builder.build_store(ptr_to, ptr_from).unwrap();
-
-            }
-            IRValue::Literal(lit) => self.load_lit(id, lit),
-        }
+        self.builder.build_return(Some(&val)).unwrap();
     }
 
     pub(crate) fn generate_to_string(&self) -> String {
@@ -118,10 +122,11 @@ impl<'ctx> Module<'ctx> {
         match id {
             PointerIdentifierKind::Global(id) => self.globals.get(id).unwrap().as_pointer_value(),
             PointerIdentifierKind::Local(id) => *self.locals.get(id).unwrap(),
+            PointerIdentifierKind::Temp(id) => *self.temps.get(id).unwrap(),
         }
     }
 
-    pub fn ir_literal_to_llvm_value(&self, literal: &IRLiteral) -> BasicValueEnum {
+    pub fn ir_literal_to_llvm_value(&self, literal: &IRLiteral) -> BasicValueEnum<'_> {
         match literal {
             IRLiteral::U8(val) => self.llvm.i8_type().const_int(*val as u64, true).into(),
             IRLiteral::U16(val) => self.llvm.i16_type().const_int(*val as u64, true).into(),

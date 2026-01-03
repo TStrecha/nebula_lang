@@ -1,6 +1,7 @@
 use nebula_ast::item::{Expr, Literal};
-use nebula_tst::{Place, Symbol, TypedLiteral};
+use nebula_tst::{Place, Symbol, Type, TypedLiteral};
 use nebula_tst::item::TypedExpr;
+use nebula_tst::ty::BuiltinType;
 use crate::tst::parser::TypedAstParser;
 
 impl TypedAstParser {
@@ -22,6 +23,15 @@ impl TypedAstParser {
                     value: Box::from(self.handle_expr(*value)),
                 }
             }
+
+            Expr::Return { value } => {
+                let ty = Type::Builtin(BuiltinType::U32); //todo from function sig
+
+                TypedExpr::Return {
+                    ty,
+                    value: Box::from(self.handle_expr(*value))
+                }
+            },
 
             Expr::Lit(lit) => {
                 match lit {
@@ -46,6 +56,7 @@ impl TypedAstParser {
                     Literal::StringLit(val) => TypedExpr::Lit(TypedLiteral::String(val)),
                 }
             }
+
             Expr::Ident(name) => {
                 let symbol = self.symbols.get(&name);
 

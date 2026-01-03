@@ -1,8 +1,8 @@
-use crate::value::{IRLiteral, IRPlace, IRTemp, IRValue};
+use crate::value::{IRLiteral, IRPlace, IRTemp};
 
 #[derive(Debug, Clone)]
 pub enum IRInstruction {
-    LoadLiteral {
+    StoreLiteral {
         target: IRPlace,
         value: IRLiteral,
     },
@@ -12,8 +12,7 @@ pub enum IRInstruction {
         from: IRPlace,
     },
 
-    Store {
-        to: IRPlace,
-        value: IRValue,
-    },
+    Return {
+        from: IRTemp,
+    }
 }

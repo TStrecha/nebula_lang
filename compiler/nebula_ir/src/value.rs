@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use crate::identification::{GlobalId, LocalId, PointerIdentifierKind, TempId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -39,6 +40,7 @@ pub enum IRValue {
 pub enum IRPlace {
     Global(GlobalId),
     Local(LocalId),
+    Temp(TempId),
 }
 
 impl IRPlace {
@@ -47,6 +49,21 @@ impl IRPlace {
         match self {
             IRPlace::Global(id) => id.as_identifier(),
             IRPlace::Local(id) => id.as_identifier(),
+            IRPlace::Temp(id) => id.as_identifier(),
+        }
+    }
+}
+
+impl From<&IRLiteral> for IRType {
+    fn from(literal: &IRLiteral) -> Self {
+        match literal {
+            IRLiteral::U8(_) => Self::U8,
+            IRLiteral::U16(_) => Self::U16,
+            IRLiteral::U32(_) => Self::U32,
+            IRLiteral::U64(_) => Self::U64,
+            IRLiteral::F32(_) => Self::F32,
+            IRLiteral::F64(_) => Self::F64,
+            IRLiteral::String(_) => Self::String,
         }
     }
 }

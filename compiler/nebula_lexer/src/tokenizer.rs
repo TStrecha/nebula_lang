@@ -28,7 +28,7 @@ pub fn is_whitespace(ch: char) -> bool {
 }
 
 pub fn is_keyword(token_str: &str) -> bool {
-    matches!(token_str, "var")
+    matches!(token_str, "var" | "return")
 }
 
 pub fn is_operator(ch: char) -> bool {

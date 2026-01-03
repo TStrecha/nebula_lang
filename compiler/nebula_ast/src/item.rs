@@ -6,6 +6,7 @@ pub enum Item {
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Expr {
     VarDecl { name: String, ty: String, value: Box<Expr> },
+    Return { value: Box<Expr> },
     Lit(Literal),
     Ident(String),
 }

@@ -27,6 +27,15 @@ impl<'t> AstParser<'t> {
                     value: Box::new(value_expr),
                 }
             }
+            Token::Keyword("return") => {
+                let value_expr = self.parse_expr();
+
+                self.consume_semicolon();
+
+                Expr::Return {
+                    value: Box::new(value_expr),
+                }
+            }
             Token::Literal(literal_kind) => {
                 let lit_val = match literal_kind {
                     LiteralKind::Number(num) => Literal::Number(*num),
